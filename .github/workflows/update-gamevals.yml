@@ -33,12 +33,44 @@ jobs:
         run: |
           pip install requests
 
+      - name: Get latest RuneLite SHA and check if already processed
+        id: get-sha
+        run: |
+          python << 'EOF'
+          import requests
+          import os
+          from pathlib import Path
+          
+          # Get latest SHA from RuneLite
+          api_url = "https://api.github.com/repos/runelite/runelite/commits/master"
+          response = requests.get(api_url, timeout=30)
+          response.raise_for_status()
+          latest_commit = response.json()
+          latest_sha = latest_commit["sha"]
+          
+          # Check if we've already processed this SHA
+          sha_file = Path('.github/last-runelite-sha.txt')
+          already_processed = False
+          
+          if sha_file.exists():
+              last_sha = sha_file.read_text().strip()
+              if last_sha == latest_sha:
+                  already_processed = True
+                  print(f"SHA {latest_sha[:7]} already processed, skipping")
+          
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"latest_sha={latest_sha}\n")
+              f.write(f"already_processed={'true' if already_processed else 'false'}\n")
+          EOF
+
       - name: Fetch and parse gamevals
+        if: steps.get-sha.outputs.already_processed != 'true'
         id: parse-gamevals
         run: |
           python .github/scripts/parse_gamevals.py
 
       - name: Check for changes
+        if: steps.get-sha.outputs.already_processed != 'true'
         id: check-changes
         run: |
           if git diff --quiet src/main/resources/rs117/hd/scene/gamevals.json; then
@@ -57,11 +89,17 @@ jobs:
           python .github/scripts/generate_change_report.py >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Update last checked SHA file
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          mkdir -p .github
+          echo "${{ steps.get-sha.outputs.latest_sha }}" > .github/last-runelite-sha.txt
+
       - name: Create or Update Pull Request
         if: steps.check-changes.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          commit-message: "Update gamevals from RuneLite"
+          commit-message: "Update gamevals from RuneLite (SHA: ${{ steps.get-sha.outputs.latest_sha }})"
           title: "Update gamevals from RuneLite"
           body: |
             ${{ steps.generate-report.outputs.report }}

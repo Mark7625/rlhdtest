@@ -42,6 +42,13 @@ jobs:
               "runelite-api/src/main/java/net/runelite/api/gameval/SpotanimID.java"
           }
           
+          # Get the latest commit SHA from RuneLite master branch
+          api_url = "https://api.github.com/repos/runelite/runelite/commits/master"
+          response = requests.get(api_url, timeout=30)
+          response.raise_for_status()
+          latest_commit = response.json()
+          latest_sha = latest_commit["sha"]
+          
           # Check last 10 commits for gameval file changes
           commits_url = "https://api.github.com/repos/runelite/runelite/commits?per_page=10"
           response = requests.get(commits_url, timeout=30)
@@ -51,7 +58,8 @@ jobs:
           if not commits:
               print("No commits found")
               with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-                  f.write("has_changes=false\n")
+                  f.write(f"has_changes=false\n")
+                  f.write(f"latest_sha={latest_sha}\n")
               exit(0)
           
           # Check files in recent commits
@@ -71,13 +79,13 @@ jobs:
               if files_changed:
                   break
           
-          if files_changed:
-              print("Gameval files changed in recent commits")
-              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"latest_sha={latest_sha}\n")
+              if files_changed:
+                  print("Gameval files changed in recent commits")
                   f.write("has_changes=true\n")
-          else:
-              print("No gameval file changes detected in recent commits")
-              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              else:
+                  print("No gameval file changes detected in recent commits")
                   f.write("has_changes=false\n")
           EOF
       
