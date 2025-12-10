@@ -116,7 +116,9 @@ def generate_report(changes):
     
     # Report renamed gamevals
     if any(changes['renamed'].values()):
-        report_lines.append("## Renamed Gamevals")
+        total_renamed = sum(len(v) for v in changes['renamed'].values())
+        report_lines.append("<details>")
+        report_lines.append(f"<summary><b>🔄 Renamed Gamevals</b> ({total_renamed} total)</summary>")
         report_lines.append("")
         for category, renamed_list in changes['renamed'].items():
             if renamed_list:
@@ -128,10 +130,14 @@ def generate_report(changes):
                 report_lines.append("")
                 report_lines.append("</details>")
                 report_lines.append("")
+        report_lines.append("</details>")
+        report_lines.append("")
     
     # Report removed gamevals
     if any(changes['removed'].values()):
-        report_lines.append("## Removed Gamevals")
+        total_removed = sum(len(v) for v in changes['removed'].values())
+        report_lines.append("<details>")
+        report_lines.append(f"<summary><b>❌ Removed Gamevals</b> ({total_removed} total)</summary>")
         report_lines.append("")
         for category, removed_list in changes['removed'].items():
             if removed_list:
@@ -143,10 +149,14 @@ def generate_report(changes):
                 report_lines.append("")
                 report_lines.append("</details>")
                 report_lines.append("")
+        report_lines.append("</details>")
+        report_lines.append("")
     
     # Report added gamevals
     if any(changes['added'].values()):
-        report_lines.append("## Added Gamevals")
+        total_added = sum(len(v) for v in changes['added'].values())
+        report_lines.append("<details>")
+        report_lines.append(f"<summary><b>✅ Added Gamevals</b> ({total_added} total)</summary>")
         report_lines.append("")
         for category, added_list in changes['added'].items():
             if added_list:
@@ -158,6 +168,8 @@ def generate_report(changes):
                 report_lines.append("")
                 report_lines.append("</details>")
                 report_lines.append("")
+        report_lines.append("</details>")
+        report_lines.append("")
     
     if not has_warnings and not any(changes['added'].values()):
         report_lines.append("No changes detected.")
