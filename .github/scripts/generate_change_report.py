@@ -71,15 +71,23 @@ def check_json_files_for_gamevals(removed_names, renamed_old_names):
             continue
         
         try:
+            # Read file as text to get line numbers
             with open(json_path, 'r', encoding='utf-8') as f:
-                json_data = json.load(f)
+                file_lines = f.readlines()
             
             file_matches = {}
             for gameval_name, change_type in names_to_check.items():
-                matches = find_gameval_in_json(json_data, gameval_name)
-                if matches:
+                # Search for exact string match in the file to get line numbers
+                # Look for the pattern: "GAMEVAL_NAME" (as a JSON string value)
+                line_numbers = []
+                for line_num, line in enumerate(file_lines, start=1):
+                    # Check for exact match as a JSON string (quoted)
+                    if f'"{gameval_name}"' in line:
+                        line_numbers.append(line_num)
+                
+                if line_numbers:
                     file_matches[gameval_name] = {
-                        'matches': matches,
+                        'line_numbers': line_numbers,
                         'change_type': change_type
                     }
             
@@ -179,20 +187,24 @@ def generate_report(changes):
     
     # Add warning about JSON files if any matches found
     if affected_files:
-        report_lines.append("## ⚠️ WARNING: FOLLOWING CHANGES HAVE BEEN MADE THAT MAY AFFECT THE JSONS")
-        report_lines.append("")
-        report_lines.append("The following files contain references to removed or renamed gamevals and should be checked:")
+        report_lines.append("### ⚠️ WARNING: FOLLOWING CHANGES HAVE BEEN MADE THAT MAY AFFECT THE JSONS")
         report_lines.append("")
         for file_name, file_matches in affected_files.items():
-            report_lines.append(f"### {file_name}")
+            report_lines.append(f"<details>")
+            report_lines.append(f"<summary><b>{file_name}</b></summary>")
             report_lines.append("")
+            report_lines.append("```diff")
             for gameval_name, match_data in sorted(file_matches.items()):
                 change_type = match_data['change_type']
-                matches = match_data['matches']
-                change_label = "🔄 Renamed" if change_type == 'renamed' else "❌ Removed"
-                report_lines.append(f"- `{gameval_name}` - {change_label} (found in {len(matches)} location(s))")
+                line_numbers = match_data['line_numbers']
+                change_marker = "!" if change_type == 'renamed' else "-"
+                change_label = "Renamed" if change_type == 'renamed' else "Removed"
+                lines_str = ", ".join(str(ln) for ln in line_numbers)
+                report_lines.append(f"{change_marker}{gameval_name} - {change_label} (lines: {lines_str})")
+            report_lines.append("```")
             report_lines.append("")
-        report_lines.append("")
+            report_lines.append("</details>")
+            report_lines.append("")
     
     # Generate unified diff-style view for all changes
     has_any_changes = any(changes['renamed'].values()) or any(changes['removed'].values()) or any(changes['added'].values())
