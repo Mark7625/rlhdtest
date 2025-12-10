@@ -120,9 +120,13 @@ def generate_report(changes):
         report_lines.append("")
         for category, renamed_list in changes['renamed'].items():
             if renamed_list:
-                report_lines.append(f"**{category.upper()}:**")
+                report_lines.append(f"<details>")
+                report_lines.append(f"<summary><b>{category.upper()}</b> ({len(renamed_list)} renamed)</summary>")
+                report_lines.append("")
                 for old_name, new_name, id_val in renamed_list:
                     report_lines.append(f"- `{old_name}` → `{new_name}` (ID: {id_val})")
+                report_lines.append("")
+                report_lines.append("</details>")
                 report_lines.append("")
     
     # Report removed gamevals
@@ -131,24 +135,28 @@ def generate_report(changes):
         report_lines.append("")
         for category, removed_list in changes['removed'].items():
             if removed_list:
-                report_lines.append(f"**{category.upper()}:**")
+                report_lines.append(f"<details>")
+                report_lines.append(f"<summary><b>{category.upper()}</b> ({len(removed_list)} removed)</summary>")
+                report_lines.append("")
                 for name, id_val in removed_list:
                     report_lines.append(f"- `{name}` (ID: {id_val})")
+                report_lines.append("")
+                report_lines.append("</details>")
                 report_lines.append("")
     
     # Report added gamevals
     if any(changes['added'].values()):
-        report_lines.append("### ✅ Added Gamevals")
+        report_lines.append("## Added Gamevals")
         report_lines.append("")
         for category, added_list in changes['added'].items():
             if added_list:
-                report_lines.append(f"**{category.upper()}:** ({len(added_list)} new)")
-                # Show first 20, then summarize if more
-                display_list = added_list[:20]
-                for name, id_val in display_list:
+                report_lines.append(f"<details>")
+                report_lines.append(f"<summary><b>{category.upper()}</b> ({len(added_list)} new)</summary>")
+                report_lines.append("")
+                for name, id_val in added_list:
                     report_lines.append(f"- `{name}` (ID: {id_val})")
-                if len(added_list) > 20:
-                    report_lines.append(f"- ... and {len(added_list) - 20} more")
+                report_lines.append("")
+                report_lines.append("</details>")
                 report_lines.append("")
     
     if not has_warnings and not any(changes['added'].values()):
