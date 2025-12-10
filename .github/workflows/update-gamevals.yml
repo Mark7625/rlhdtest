@@ -70,4 +70,5 @@ jobs:
             ${{ steps.generate-report.outputs.report }}
           branch: update-gamevals
           delete-branch: true
+          approve: false
 
