@@ -53,12 +53,11 @@ jobs:
         if: steps.check-changes.outputs.has_changes == 'true'
         id: generate-report
         run: |
-          python .github/scripts/generate_change_report.py > change_report.txt
           echo "report<<EOF" >> $GITHUB_OUTPUT
-          cat change_report.txt >> $GITHUB_OUTPUT
+          python .github/scripts/generate_change_report.py >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Create Pull Request
+      - name: Create or Update Pull Request
         if: steps.check-changes.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
@@ -71,4 +70,5 @@ jobs:
           branch: update-gamevals
           delete-branch: true
           approve: false
+          update-branch: true
 
