@@ -53,14 +53,14 @@ def check_json_files_for_gamevals(removed_names, renamed_old_names):
         ('src/main/resources/rs117/hd/scene/model_overrides.json', 'model_overrides.json')
     ]
     
-    # Collect all names to check (removed + renamed old names)
-    names_to_check = set()
+    # Collect all names to check with their change type (removed or renamed)
+    names_to_check = {}  # name -> 'removed' or 'renamed'
     for category, removed_list in removed_names.items():
         for name, _ in removed_list:
-            names_to_check.add(name)
+            names_to_check[name] = 'removed'
     for category, renamed_list in renamed_old_names.items():
         for old_name, _, _ in renamed_list:
-            names_to_check.add(old_name)
+            names_to_check[old_name] = 'renamed'
     
     if not names_to_check:
         return affected_files
@@ -75,10 +75,13 @@ def check_json_files_for_gamevals(removed_names, renamed_old_names):
                 json_data = json.load(f)
             
             file_matches = {}
-            for gameval_name in names_to_check:
+            for gameval_name, change_type in names_to_check.items():
                 matches = find_gameval_in_json(json_data, gameval_name)
                 if matches:
-                    file_matches[gameval_name] = matches
+                    file_matches[gameval_name] = {
+                        'matches': matches,
+                        'change_type': change_type
+                    }
             
             if file_matches:
                 affected_files[file_display_name] = file_matches
@@ -183,8 +186,11 @@ def generate_report(changes):
         for file_name, file_matches in affected_files.items():
             report_lines.append(f"### {file_name}")
             report_lines.append("")
-            for gameval_name, matches in sorted(file_matches.items()):
-                report_lines.append(f"- `{gameval_name}` (found in {len(matches)} location(s))")
+            for gameval_name, match_data in sorted(file_matches.items()):
+                change_type = match_data['change_type']
+                matches = match_data['matches']
+                change_label = "🔄 Renamed" if change_type == 'renamed' else "❌ Removed"
+                report_lines.append(f"- `{gameval_name}` - {change_label} (found in {len(matches)} location(s))")
             report_lines.append("")
         report_lines.append("")
     
