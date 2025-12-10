@@ -22042,7 +22042,7 @@
     "duration": 1550,
     "range": 13.5,
     "objectIds": [
-      "CASTLEWARS_ZAMORAK_TELE",
+      "TEST_OBJECT_ANOTHER_REMOVAL",
       "CASTLEWARS_ZAMORAK_EXIT",
       "CASTLEWARS_ZAMORAK_QUIT"
     ]
