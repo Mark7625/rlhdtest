@@ -194,47 +194,45 @@ def generate_report(changes):
             report_lines.append("")
         report_lines.append("")
     
-    # Report renamed gamevals
-    if any(changes['renamed'].values()):
-        report_lines.append("## Renamed Gamevals")
+    # Generate unified diff-style view for all changes
+    has_any_changes = any(changes['renamed'].values()) or any(changes['removed'].values()) or any(changes['added'].values())
+    
+    if has_any_changes:
+        report_lines.append("## Gamevals Changes")
         report_lines.append("")
-        for category, renamed_list in changes['renamed'].items():
-            if renamed_list:
+        
+        # Process all categories
+        all_categories = set()
+        all_categories.update(changes['renamed'].keys())
+        all_categories.update(changes['removed'].keys())
+        all_categories.update(changes['added'].keys())
+        
+        for category in sorted(all_categories):
+            renamed_list = changes['renamed'].get(category, [])
+            removed_list = changes['removed'].get(category, [])
+            added_list = changes['added'].get(category, [])
+            
+            if renamed_list or removed_list or added_list:
+                total_count = len(renamed_list) + len(removed_list) + len(added_list)
                 report_lines.append(f"<details>")
-                report_lines.append(f"<summary><b>{category.upper()}</b> ({len(renamed_list)} renamed)</summary>")
+                report_lines.append(f"<summary><b>{category.upper()}</b> ({total_count} changes)</summary>")
                 report_lines.append("")
+                report_lines.append("```diff")
+                
+                # Show renamed items (old name removed, new name added)
                 for old_name, new_name, id_val in renamed_list:
-                    report_lines.append(f"- `{old_name}` → `{new_name}` (ID: {id_val})")
-                report_lines.append("")
-                report_lines.append("</details>")
-                report_lines.append("")
-    
-    # Report removed gamevals
-    if any(changes['removed'].values()):
-        report_lines.append("## Removed Gamevals")
-        report_lines.append("")
-        for category, removed_list in changes['removed'].items():
-            if removed_list:
-                report_lines.append(f"<details>")
-                report_lines.append(f"<summary><b>{category.upper()}</b> ({len(removed_list)} removed)</summary>")
-                report_lines.append("")
+                    report_lines.append(f"-{old_name} (ID: {id_val})")
+                    report_lines.append(f"+{new_name} (ID: {id_val})")
+                
+                # Show removed items
                 for name, id_val in removed_list:
-                    report_lines.append(f"- `{name}` (ID: {id_val})")
-                report_lines.append("")
-                report_lines.append("</details>")
-                report_lines.append("")
-    
-    # Report added gamevals
-    if any(changes['added'].values()):
-        report_lines.append("## Added Gamevals")
-        report_lines.append("")
-        for category, added_list in changes['added'].items():
-            if added_list:
-                report_lines.append(f"<details>")
-                report_lines.append(f"<summary><b>{category.upper()}</b> ({len(added_list)} new)</summary>")
-                report_lines.append("")
+                    report_lines.append(f"-{name} (ID: {id_val})")
+                
+                # Show added items
                 for name, id_val in added_list:
-                    report_lines.append(f"- `{name}` (ID: {id_val})")
+                    report_lines.append(f"+{name} (ID: {id_val})")
+                
+                report_lines.append("```")
                 report_lines.append("")
                 report_lines.append("</details>")
                 report_lines.append("")
