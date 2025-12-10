@@ -28,6 +28,65 @@ def reverse_map(gamevals):
             reverse[category][id_value].append(name)
     return reverse
 
+def find_gameval_in_json(json_data, gameval_name, path=""):
+    """Recursively search JSON for exact string matches of gameval name"""
+    matches = []
+    
+    if isinstance(json_data, dict):
+        for key, value in json_data.items():
+            new_path = f"{path}.{key}" if path else key
+            matches.extend(find_gameval_in_json(value, gameval_name, new_path))
+    elif isinstance(json_data, list):
+        for i, item in enumerate(json_data):
+            new_path = f"{path}[{i}]" if path else f"[{i}]"
+            matches.extend(find_gameval_in_json(item, gameval_name, new_path))
+    elif isinstance(json_data, str) and json_data == gameval_name:
+        matches.append(path if path else "root")
+    
+    return matches
+
+def check_json_files_for_gamevals(removed_names, renamed_old_names):
+    """Check lights.json and model_overrides.json for removed/renamed gameval names"""
+    affected_files = {}
+    files_to_check = [
+        ('src/main/resources/rs117/hd/scene/lights.json', 'lights.json'),
+        ('src/main/resources/rs117/hd/scene/model_overrides.json', 'model_overrides.json')
+    ]
+    
+    # Collect all names to check (removed + renamed old names)
+    names_to_check = set()
+    for category, removed_list in removed_names.items():
+        for name, _ in removed_list:
+            names_to_check.add(name)
+    for category, renamed_list in renamed_old_names.items():
+        for old_name, _, _ in renamed_list:
+            names_to_check.add(old_name)
+    
+    if not names_to_check:
+        return affected_files
+    
+    for file_path, file_display_name in files_to_check:
+        json_path = Path(file_path)
+        if not json_path.exists():
+            continue
+        
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+            
+            file_matches = {}
+            for gameval_name in names_to_check:
+                matches = find_gameval_in_json(json_data, gameval_name)
+                if matches:
+                    file_matches[gameval_name] = matches
+            
+            if file_matches:
+                affected_files[file_display_name] = file_matches
+        except Exception as e:
+            print(f"Warning: Could not check {file_display_name}: {e}", file=sys.stderr)
+    
+    return affected_files
+
 def compare_gamevals(old_gamevals, new_gamevals):
     """Compare old and new gamevals and detect changes"""
     changes = {
@@ -108,17 +167,34 @@ def generate_report(changes):
     """Generate a markdown report of changes"""
     report_lines = []
     
+    # Check JSON files for affected gamevals
+    affected_files = check_json_files_for_gamevals(changes['removed'], changes['renamed'])
+    
     has_warnings = False
     if any(changes['renamed'].values()) or any(changes['removed'].values()):
         has_warnings = True
+    
+    # Add warning about JSON files if any matches found
+    if affected_files:
+        report_lines.append("## ⚠️ WARNING: FOLLOWING CHANGES HAVE BEEN MADE THAT MAY AFFECT THE JSONS")
+        report_lines.append("")
+        report_lines.append("The following files contain references to removed or renamed gamevals and should be checked:")
+        report_lines.append("")
+        for file_name, file_matches in affected_files.items():
+            report_lines.append(f"### {file_name}")
+            report_lines.append("")
+            for gameval_name, matches in sorted(file_matches.items()):
+                report_lines.append(f"- `{gameval_name}` (found in {len(matches)} location(s))")
+            report_lines.append("")
+        report_lines.append("")
+    
+    if has_warnings and not affected_files:
         report_lines.append("## ⚠️ WARNING: FOLLOWING CHANGES HAVE BEEN MADE")
         report_lines.append("")
     
     # Report renamed gamevals
     if any(changes['renamed'].values()):
-        total_renamed = sum(len(v) for v in changes['renamed'].values())
-        report_lines.append("<details>")
-        report_lines.append(f"<summary><b>🔄 Renamed Gamevals</b> ({total_renamed} total)</summary>")
+        report_lines.append("## Renamed Gamevals")
         report_lines.append("")
         for category, renamed_list in changes['renamed'].items():
             if renamed_list:
@@ -130,14 +206,10 @@ def generate_report(changes):
                 report_lines.append("")
                 report_lines.append("</details>")
                 report_lines.append("")
-        report_lines.append("</details>")
-        report_lines.append("")
     
     # Report removed gamevals
     if any(changes['removed'].values()):
-        total_removed = sum(len(v) for v in changes['removed'].values())
-        report_lines.append("<details>")
-        report_lines.append(f"<summary><b>❌ Removed Gamevals</b> ({total_removed} total)</summary>")
+        report_lines.append("## Removed Gamevals")
         report_lines.append("")
         for category, removed_list in changes['removed'].items():
             if removed_list:
@@ -149,14 +221,10 @@ def generate_report(changes):
                 report_lines.append("")
                 report_lines.append("</details>")
                 report_lines.append("")
-        report_lines.append("</details>")
-        report_lines.append("")
     
     # Report added gamevals
     if any(changes['added'].values()):
-        total_added = sum(len(v) for v in changes['added'].values())
-        report_lines.append("<details>")
-        report_lines.append(f"<summary><b>✅ Added Gamevals</b> ({total_added} total)</summary>")
+        report_lines.append("## Added Gamevals")
         report_lines.append("")
         for category, added_list in changes['added'].items():
             if added_list:
@@ -168,8 +236,6 @@ def generate_report(changes):
                 report_lines.append("")
                 report_lines.append("</details>")
                 report_lines.append("")
-        report_lines.append("</details>")
-        report_lines.append("")
     
     if not has_warnings and not any(changes['added'].values()):
         report_lines.append("No changes detected.")
