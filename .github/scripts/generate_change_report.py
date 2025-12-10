@@ -188,10 +188,6 @@ def generate_report(changes):
             report_lines.append("")
         report_lines.append("")
     
-    if has_warnings and not affected_files:
-        report_lines.append("## ⚠️ WARNING: FOLLOWING CHANGES HAVE BEEN MADE")
-        report_lines.append("")
-    
     # Report renamed gamevals
     if any(changes['renamed'].values()):
         report_lines.append("## Renamed Gamevals")
