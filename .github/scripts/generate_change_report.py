@@ -7,7 +7,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 GAMEVALS_PATH = Path('src/main/resources/rs117/hd/scene/gamevals.json')
 JSON_FILES_TO_CHECK = [
@@ -20,22 +20,17 @@ def load_gamevals(file_path: Path) -> Dict[str, Dict[str, int]]:
     """Load gamevals.json file and parse JSON content."""
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
-        # Remove the comment line if present
         if content.startswith('//'):
             content = '\n'.join(content.split('\n')[1:])
         return json.loads(content)
+
+
 
 def check_json_files_for_gamevals(
     removed_names: Dict[str, List[Tuple[str, int]]],
     renamed_old_names: Dict[str, List[Tuple[str, str, int]]]
 ) -> Dict[str, Dict[str, Dict[str, Union[List[int], str]]]]:
-    """
-    Check JSON files for removed/renamed gameval names and return line numbers.
-    
-    Returns:
-        Dictionary mapping file names to gameval matches with line numbers.
-    """
-    # Collect all names to check with their change type
+    """Check JSON files for removed/renamed gameval names and return line numbers."""
     names_to_check: Dict[str, str] = {}
     for removed_list in removed_names.values():
         for name, _ in removed_list:
@@ -81,18 +76,12 @@ def check_json_files_for_gamevals(
 def compare_gamevals(
     old_gamevals: Dict[str, Dict[str, int]],
     new_gamevals: Dict[str, Dict[str, int]]
-) -> Dict[str, Dict[str, List[Tuple]]]:
-    """
-    Compare old and new gamevals and detect changes.
-    
-    Returns:
-        Dictionary with 'renamed', 'added', and 'removed' keys,
-        each mapping category to list of changes.
-    """
-    changes: Dict[str, Dict[str, List[Tuple]]] = {
-        'renamed': {},  # category -> [(old_name, new_name, id)]
-        'added': {},    # category -> [(name, id)]
-        'removed': {}   # category -> [(name, id)]
+) -> Dict[str, Dict[str, List[Tuple[Any, ...]]]]:
+    """Compare old and new gamevals and detect changes."""
+    changes: Dict[str, Dict[str, List[Tuple[Any, ...]]]] = {
+        'renamed': {},
+        'added': {},
+        'removed': {}
     }
     
     all_categories = set(old_gamevals.keys()) | set(new_gamevals.keys())
@@ -101,7 +90,6 @@ def compare_gamevals(
         old_constants = old_gamevals.get(category, {})
         new_constants = new_gamevals.get(category, {})
         
-        # Build ID -> names mappings
         old_id_to_names: Dict[int, List[str]] = {}
         for name, id_val in old_constants.items():
             old_id_to_names.setdefault(id_val, []).append(name)
@@ -112,7 +100,6 @@ def compare_gamevals(
         
         processed_ids = set()
         
-        # Find renames: IDs that exist in both but with different names
         common_ids = set(old_id_to_names.keys()) & set(new_id_to_names.keys())
         for id_val in common_ids:
             old_names = set(old_id_to_names[id_val])
@@ -122,12 +109,10 @@ def compare_gamevals(
                 processed_ids.add(id_val)
                 if category not in changes['renamed']:
                     changes['renamed'][category] = []
-                # Report each old name that doesn't exist in new
                 for old_name in old_names - new_names:
                     for new_name in new_names - old_names:
                         changes['renamed'][category].append((old_name, new_name, id_val))
         
-        # Find removed: IDs that exist in old but not in new (and weren't renamed)
         removed_ids = set(old_id_to_names.keys()) - set(new_id_to_names.keys())
         for id_val in removed_ids:
             if id_val not in processed_ids:
@@ -136,7 +121,6 @@ def compare_gamevals(
                 for old_name in old_id_to_names[id_val]:
                     changes['removed'][category].append((old_name, id_val))
         
-        # Find added: IDs that exist in new but not in old
         added_ids = set(new_id_to_names.keys()) - set(old_id_to_names.keys())
         for id_val in added_ids:
             if category not in changes['added']:
@@ -144,7 +128,6 @@ def compare_gamevals(
             for new_name in new_id_to_names[id_val]:
                 changes['added'][category].append((new_name, id_val))
         
-        # Check for names that changed ID (treat as removal + addition)
         for old_name, old_id in old_constants.items():
             if old_name in new_constants:
                 new_id = new_constants[old_name]
@@ -154,14 +137,12 @@ def compare_gamevals(
     
     return changes
 
-def generate_report(changes: Dict[str, Dict[str, List[Tuple]]]) -> str:
+def generate_report(changes: Dict[str, Dict[str, List[Tuple[Any, ...]]]]) -> str:
     """Generate a markdown report of changes."""
     report_lines: List[str] = []
     
-    # Check JSON files for affected gamevals
     affected_files = check_json_files_for_gamevals(changes['removed'], changes['renamed'])
     
-    # Add warning about JSON files if any matches found
     if affected_files:
         report_lines.append("### ⚠️ WARNING: FOLLOWING CHANGES HAVE BEEN MADE THAT MAY AFFECT THE JSONS")
         report_lines.append("")
@@ -174,8 +155,8 @@ def generate_report(changes: Dict[str, Dict[str, List[Tuple]]]) -> str:
             ])
             
             for gameval_name, match_data in sorted(file_matches.items()):
-                change_type = match_data['change_type']  # type: ignore
-                line_numbers = match_data['line_numbers']  # type: ignore
+                change_type: str = match_data['change_type']  # type: ignore[assignment]
+                line_numbers: List[int] = match_data['line_numbers']  # type: ignore[assignment]
                 change_marker = "!" if change_type == 'renamed' else "-"
                 change_label = "Renamed" if change_type == 'renamed' else "Removed"
                 lines_str = ", ".join(str(ln) for ln in line_numbers)
@@ -188,7 +169,6 @@ def generate_report(changes: Dict[str, Dict[str, List[Tuple]]]) -> str:
                 ""
             ])
     
-    # Generate unified diff-style view for all changes
     has_any_changes = (
         any(changes['renamed'].values()) or
         any(changes['removed'].values()) or
@@ -219,15 +199,12 @@ def generate_report(changes: Dict[str, Dict[str, List[Tuple]]]) -> str:
                     "```diff"
                 ])
                 
-                # Show renamed items
                 for old_name, new_name, id_val in renamed_list:
                     report_lines.append(f"! {old_name} → {new_name} (ID: {id_val})")
                 
-                # Show removed items
                 for name, id_val in removed_list:
                     report_lines.append(f"-{name} (ID: {id_val})")
                 
-                # Show added items
                 for name, id_val in added_list:
                     report_lines.append(f"+{name} (ID: {id_val})")
                 
@@ -244,7 +221,6 @@ def generate_report(changes: Dict[str, Dict[str, List[Tuple]]]) -> str:
 
 def main() -> None:
     """Main function."""
-    # Get the old version from git
     try:
         result = subprocess.run(
             ['git', 'show', f'HEAD:{GAMEVALS_PATH}'],
@@ -260,7 +236,6 @@ def main() -> None:
         print("Warning: Could not fetch old gamevals.json from git", file=sys.stderr)
         old_gamevals = {}
     
-    # Load new version
     if not GAMEVALS_PATH.exists():
         print("Error: New gamevals.json not found", file=sys.stderr)
         sys.exit(1)
