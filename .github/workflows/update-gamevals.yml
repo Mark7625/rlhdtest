@@ -14,18 +14,12 @@ jobs:
       pull-requests: write
     
     steps:
-      - name: Checkout current repository (for scripts)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Checkout target repository
         uses: actions/checkout@v4
         with:
-          repository: Mark7625/RLHD
-          token: ${{ secrets.PAT_TOKEN }}
+          repository: 117HD/RLHD
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
-          path: target-repo
 
       - name: Configure Git
         run: |
@@ -113,7 +107,6 @@ jobs:
 
       - name: Get latest RuneLite SHA and check if already processed
         id: get-sha
-        working-directory: target-repo
         run: |
           python << 'EOF'
           import requests
@@ -161,36 +154,50 @@ jobs:
           EOF
 
       - name: Fetch and parse gamevals
+        if: steps.get-sha.outputs.already_processed != 'true'
         id: parse-gamevals
-        env:
-          TARGET_REPO: target-repo
         run: |
-          cd target-repo
-          python ../.github/scripts/parse_gamevals.py
+          python .github/scripts/parse_gamevals.py
+
+      - name: Check for changes
+        if: steps.get-sha.outputs.already_processed != 'true'
+        id: check-changes
+        run: |
+          if git diff --quiet src/main/resources/rs117/hd/scene/gamevals.json; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No changes detected"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changes detected"
+          fi
 
       - name: Generate change report
+        if: steps.check-changes.outputs.has_changes == 'true'
         id: generate-report
-        working-directory: target-repo
         run: |
-          python ../.github/scripts/generate_change_report.py > change_report.md
+          echo "report<<EOF" >> $GITHUB_OUTPUT
+          python .github/scripts/generate_change_report.py >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Update last checked SHA file
-        working-directory: target-repo
+        if: steps.check-changes.outputs.has_changes == 'true'
         run: |
           mkdir -p .github
           echo "${{ steps.get-sha.outputs.latest_sha }}" > .github/last-runelite-sha.txt
 
       - name: Create or Update Pull Request
+        if: steps.check-changes.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Update gamevals from ${{ steps.get-rev.outputs.rev }} [${{ steps.get-rev.outputs.rev_date }}]"
           title: "Update gamevals from ${{ steps.get-rev.outputs.rev }} [${{ steps.get-rev.outputs.rev_date }}]"
-          body-path: target-repo/change_report.md
+          body: |
+            ${{ steps.generate-report.outputs.report }}
           branch: update-gamevals
           delete-branch: true
           approve: false
           update-branch: true
-          path: target-repo
-          repository: Mark7625/RLHD
+          repo: 117HD/RLHD
+          base: master
 

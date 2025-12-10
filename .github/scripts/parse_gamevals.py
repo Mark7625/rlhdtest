@@ -105,10 +105,6 @@ def main() -> None:
     if existing_data:
         full_export = preserve_order_update(existing_data, full_export)
     
-    # Add fake entry for testing
-    if 'npcs' in full_export:
-        full_export['npcs']['FAKE_TEST_NPC'] = 99999
-    
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     json_content = "// AUTO-GENERATED FILE. DO NOT MODIFY.\n" + json.dumps(
         full_export, indent=4
