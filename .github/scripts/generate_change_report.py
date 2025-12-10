@@ -116,7 +116,7 @@ def generate_report(changes):
     
     # Report renamed gamevals
     if any(changes['renamed'].values()):
-        report_lines.append("### 🔄 Renamed Gamevals")
+        report_lines.append("## Renamed Gamevals")
         report_lines.append("")
         for category, renamed_list in changes['renamed'].items():
             if renamed_list:
@@ -131,7 +131,7 @@ def generate_report(changes):
     
     # Report removed gamevals
     if any(changes['removed'].values()):
-        report_lines.append("### ❌ Removed Gamevals")
+        report_lines.append("## Removed Gamevals")
         report_lines.append("")
         for category, removed_list in changes['removed'].items():
             if removed_list:
