@@ -219,10 +219,9 @@ def generate_report(changes):
                 report_lines.append("")
                 report_lines.append("```diff")
                 
-                # Show renamed items (old name removed, new name added)
+                # Show renamed items as a single line (using ! for modified/renamed)
                 for old_name, new_name, id_val in renamed_list:
-                    report_lines.append(f"-{old_name} (ID: {id_val})")
-                    report_lines.append(f"+{new_name} (ID: {id_val})")
+                    report_lines.append(f"! {old_name} → {new_name} (ID: {id_val})")
                 
                 # Show removed items
                 for name, id_val in removed_list:
