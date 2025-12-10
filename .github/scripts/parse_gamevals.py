@@ -54,8 +54,47 @@ def parse_java_constants(java_content: str) -> Dict[str, int]:
     return constants
 
 
+def preserve_order_update(
+    existing: Dict[str, Dict[str, int]],
+    new_data: Dict[str, Dict[str, int]]
+) -> Dict[str, Dict[str, int]]:
+    """
+    Update existing dict with new data while preserving order of existing keys.
+    New keys are appended at the end of each category.
+    """
+    result: Dict[str, Dict[str, int]] = {}
+    
+    for category in new_data.keys():
+        result[category] = {}
+        
+        # First, preserve existing keys in their original order
+        if category in existing:
+            for key in existing[category]:
+                if key in new_data[category]:
+                    result[category][key] = new_data[category][key]
+        
+        # Then, add any new keys that weren't in the original
+        for key in new_data[category]:
+            if key not in result[category]:
+                result[category][key] = new_data[category][key]
+    
+    return result
+
+
 def main() -> None:
     """Main function to fetch, parse, and generate gamevals.json."""
+    # Load existing file to preserve order
+    existing_data: Dict[str, Dict[str, int]] = {}
+    if OUTPUT_PATH.exists():
+        try:
+            with open(OUTPUT_PATH, 'r', encoding='utf-8') as f:
+                content = f.read()
+                if content.startswith('//'):
+                    content = '\n'.join(content.split('\n')[1:])
+                existing_data = json.loads(content)
+        except Exception:
+            pass  # If we can't load it, we'll just create new
+    
     full_export: Dict[str, Dict[str, int]] = {}
     
     for category, file_list in EXPORT_MAP.items():
@@ -78,10 +117,14 @@ def main() -> None:
         full_export[category] = constants
         print(f"  Total {category}: {len(constants)} constants")
     
+    # Preserve order from existing file if it exists
+    if existing_data:
+        full_export = preserve_order_update(existing_data, full_export)
+    
     # Write output file
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     json_content = "// AUTO-GENERATED FILE. DO NOT MODIFY.\n" + json.dumps(
-        full_export, indent=4, sort_keys=True
+        full_export, indent=4
     )
     OUTPUT_PATH.write_text(json_content, encoding='utf-8')
     
