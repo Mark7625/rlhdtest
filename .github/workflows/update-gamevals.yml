@@ -14,9 +14,11 @@ jobs:
       pull-requests: write
     
     steps:
-      - name: Checkout repository
+      - name: Checkout target repository
         uses: actions/checkout@v4
         with:
+          repository: 117HD/RLHD
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Configure Git
@@ -109,7 +111,7 @@ jobs:
           python << 'EOF'
           import requests
           import os
-          from pathlib import Path
+          import subprocess
           
           api_url = "https://api.github.com/repos/runelite/runelite/commits/master"
           response = requests.get(api_url, timeout=30)
@@ -117,14 +119,34 @@ jobs:
           latest_commit = response.json()
           latest_sha = latest_commit["sha"]
           
-          sha_file = Path('.github/last-runelite-sha.txt')
           already_processed = False
-          
-          if sha_file.exists():
-              last_sha = sha_file.read_text().strip()
-              if last_sha == latest_sha:
-                  already_processed = True
-                  print(f"SHA {latest_sha[:7]} already processed, skipping")
+          try:
+              result = subprocess.run(
+                  ['git', 'show', 'origin/update-gamevals:.github/last-runelite-sha.txt'],
+                  capture_output=True,
+                  text=True,
+                  timeout=10
+              )
+              if result.returncode == 0:
+                  last_sha = result.stdout.strip()
+                  if last_sha == latest_sha:
+                      already_processed = True
+                      print(f"SHA {latest_sha[:7]} already processed, skipping")
+          except:
+              try:
+                  result = subprocess.run(
+                      ['git', 'show', 'origin/master:.github/last-runelite-sha.txt'],
+                      capture_output=True,
+                      text=True,
+                      timeout=10
+                  )
+                  if result.returncode == 0:
+                      last_sha = result.stdout.strip()
+                      if last_sha == latest_sha:
+                          already_processed = True
+                          print(f"SHA {latest_sha[:7]} already processed, skipping")
+              except:
+                  pass
           
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write(f"latest_sha={latest_sha}\n")
@@ -167,6 +189,7 @@ jobs:
         if: steps.check-changes.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Update gamevals from ${{ steps.get-rev.outputs.rev }} [${{ steps.get-rev.outputs.rev_date }}]"
           title: "Update gamevals from ${{ steps.get-rev.outputs.rev }} [${{ steps.get-rev.outputs.rev_date }}]"
           body: |
@@ -175,4 +198,6 @@ jobs:
           delete-branch: true
           approve: false
           update-branch: true
+          repo: 117HD/RLHD
+          base: master
 
